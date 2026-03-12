@@ -1,0 +1,170 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PH-EE Debug Overrides
+# ─────────────────────────────────────────────────────────────────────────────
+# Apply this file ON TOP of ph_values.yaml to enable remote Java debugging on
+# all PH-EE connector pods.
+#
+# Usage:
+#   helm upgrade ph-ee-engine ph-ee-engine/ph-ee-engine \
+#     -f config/ph_values.yaml \
+#     -f config/ph_values_debug.yaml
+#
+# Each component listens on a unique JDWP port inside the pod.
+# Use `kubectl port-forward` to reach it from your workstation:
+#
+#   kubectl port-forward -n paymenthub svc/<service-name> <local-port>:<pod-port>
+#
+# See docs/JAVA-DEBUGGING.md for the full step-by-step guide.
+#
+# ┌────────────────────────────────┬──────────┬────────────────────────────────────────────────┐
+# │ Component                      │ Pod port │ kubectl port-forward command                   │
+# ├────────────────────────────────┼──────────┼────────────────────────────────────────────────┤
+# │ operations_app                 │ 5010     │ kubectl port-forward deploy/ph-ee-operations-  │
+# │                                │          │   app 5010:5010 -n paymenthub                  │
+# │ ph_ee_connector_ams_mifos      │ 5011     │ kubectl port-forward deploy/ph-ee-connector-   │
+# │                                │          │   ams-mifos 5011:5011 -n paymenthub            │
+# │ ph_ee_bulk_processor           │ 5012     │ kubectl port-forward deploy/ph-ee-bulk-        │
+# │                                │          │   processor 5012:5012 -n paymenthub            │
+# │ channel                        │ 5013     │ kubectl port-forward deploy/ph-ee-connector-   │
+# │                                │          │   channel 5013:5013 -n paymenthub              │
+# │ ph_ee_connector_mojaloop       │ 5014     │ kubectl port-forward deploy/ph-ee-connector-   │
+# │                                │          │   mojaloop-java 5014:5014 -n paymenthub        │
+# │ zeebe_ops                      │ 5015     │ kubectl port-forward deploy/ph-ee-zeebe-ops    │
+# │                                │          │   5015:5015 -n paymenthub                      │
+# │ ph_ee_connector_bulk           │ 5016     │ kubectl port-forward deploy/ph-ee-connector-   │
+# │                                │          │   bulk 5016:5016 -n paymenthub                 │
+# │ importer_rdbms                 │ 5017     │ kubectl port-forward deploy/ph-ee-importer-    │
+# │                                │          │   rdbms 5017:5017 -n paymenthub                │
+# └────────────────────────────────┴──────────┴────────────────────────────────────────────────┘
+#
+# NOTE ON YAML FORMAT
+# JAVA_TOOL_OPTIONS is written as a plain single-line string (no `|` block scalar).
+# A literal block scalar introduces embedded newlines which can cause silent parsing
+# failures in some JVM versions. Single-line is always safe.
+#
+# NOTE ON address=*:PORT
+# Using address=localhost:PORT binds only to the loopback interface. Because pod
+# networking may resolve 'localhost' to ::1 (IPv6) or 127.0.0.1 (IPv4) depending
+# on the kernel and CNI plugin, this can result in the JDWP socket being unreachable
+# from kubectl port-forward. address=*:PORT binds to all interfaces and is the
+# documented pattern for any port-forward scenario.
+# ─────────────────────────────────────────────────────────────────────────────
+
+ph-ee-engine:
+
+  # ── operations_app ──────────────────────────────────────────────────────────
+  # JDWP port: 5010
+  # Helm replaces lists entirely — the full extraEnvs must be repeated here.
+  operations_app:
+    deployment:
+      extraEnvs:
+        - name: CLOUD_AWS_S3BASEURL
+          value: "http://minio:9000"
+        - name: CLOUD_AWS_REGION_STATIC
+          valueFrom:
+            secretKeyRef:
+              name: bulk-processor-secret
+              key: aws-region
+        - name: AWS_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: bulk-processor-secret
+              key: aws-access-key
+        - name: AWS_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: bulk-processor-secret
+              key: aws-secret-key
+        - name: CLOUD_AWS_CREDENTIALS_ACCESS-KEY
+          valueFrom:
+            secretKeyRef:
+              name: bulk-processor-secret
+              key: aws-access-key
+        - name: CLOUD_AWS_CREDENTIALS_SECRET-KEY
+          valueFrom:
+            secretKeyRef:
+              name: bulk-processor-secret
+              key: aws-secret-key
+        - name: APPLICATION_BUCKET-NAME
+          value: "paymenthub-ee"
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Xms128m -Xmx256m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5010"
+
+  # ── ph_ee_connector_ams_mifos ────────────────────────────────────────────────
+  # JDWP port: 5011
+  ph_ee_connector_ams_mifos:
+    deployment:
+      extraEnvs:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Xms128m -Xmx256m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5011"
+
+  # ── ph_ee_bulk_processor ────────────────────────────────────────────────────
+  # JDWP port: 5012
+  # The trustStore flags and callback URL from ph_values.yaml must be kept.
+  ph_ee_bulk_processor:
+    deployment:
+      extraEnvs:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Xms128m -Xmx256m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -Djavax.net.ssl.trustStore=/shared/cacerts -Djavax.net.ssl.trustStorePassword=changeit -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5012"
+        - name: BULK_PROCESSOR_CALLBACK_URL
+          value: "https://ph-ee-bulk-processor:8443/authorization/callback"
+
+  # ── channel ─────────────────────────────────────────────────────────────────
+  # JDWP port: 5013
+  # channel uses extraEnvs directly (no deployment wrapper).
+  channel:
+    extraEnvs:
+      - name: JAVA_TOOL_OPTIONS
+        value: "-Xms64m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5013"
+
+  # ── ph_ee_connector_mojaloop ────────────────────────────────────────────────
+  # JDWP port: 5014
+  # The party domain/fspId envs from ph_values.yaml must be kept.
+  ph_ee_connector_mojaloop:
+    deployment:
+      extraEnvs:
+        - name: parties_0_domain
+          value: "ph-ee-connector-mojaloop-java.paymenthub.svc.cluster.local"
+        - name: parties_1_domain
+          value: "http://fineract-server.mifosx.svc.cluster.local:8080"
+        - name: parties_0_tenantId
+          value: "greenbank"
+        - name: parties_1_tenantId
+          value: "bluebank"
+        - name: parties_0_fspId
+          value: "greenbank"
+        - name: parties_1_fspId
+          value: "bluebank"
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Xms128m -Xmx256m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5014"
+
+  # ── zeebe_ops ────────────────────────────────────────────────────────────────
+  # JDWP port: 5015
+  zeebe_ops:
+    deployment:
+      extraEnvs:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Xms128m -Xmx256m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5015"
+
+  # ── ph_ee_connector_bulk ────────────────────────────────────────────────────
+  # JDWP port: 5016
+  # ph_ee_connector_bulk uses extraEnvs directly (no deployment wrapper).
+  # The channel and bulk-processor endpoint envs from ph_values.yaml must be kept.
+  ph_ee_connector_bulk:
+    extraEnvs:
+      - name: CHANNEL_CONTACTPOINT
+        value: "https://ph-ee-connector-channel:8443"
+      - name: CHANNEL_ENDPOINTS_BATCH-TRANSACTION
+        value: "/channel/transfer"
+      - name: BULK-PROCESSOR_ENDPOINTS_BATCH-EXECUTION
+        value: "/batchtransactions/execution"
+      - name: JAVA_TOOL_OPTIONS
+        value: "-Xms64m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5016"
+
+  # ── importer_rdbms ───────────────────────────────────────────────────────────
+  # JDWP port: 5017
+  # importer_rdbms uses extraEnvs directly (no deployment wrapper).
+  importer_rdbms:
+    extraEnvs:
+      - name: JAVA_TOOL_OPTIONS
+        value: "-Xms64m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5017"
