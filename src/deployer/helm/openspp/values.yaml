@@ -1,0 +1,73 @@
+# OpenSPP — Social Protection Platform (Odoo 17-based)
+#
+# Resource budget:
+#   PostgreSQL:  128Mi req / 512Mi limit
+#   OpenSPP:     512Mi req / 1536Mi limit
+#   Net addition to cluster: ~640Mi steady-state, ~2GB peak during startup
+#
+# To offset the RAM cost when enabling OpenSPP, consider reducing or
+# disabling Kibana in src/deployer/helm/infra/values.yaml (~800Mi saved).
+# Raises effective minimum RAM from 6 GB to ~8 GB.
+
+############### OpenSPP (Odoo) ####################
+openspp:
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/openspp/openspp-base
+    tag: "17.0"
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "1536Mi"
+      cpu: "1000m"
+
+  # PostgreSQL connection — points to the postgresql subchart below
+  env:
+    HOST: "postgresql"
+    PORT: "5432"
+    USER: "openspp"
+    PASSWORD: "opensppPas42"
+    DB: "openspp"
+    ADMIN_PASSWD: "admin"
+    # Prevent the Odoo database list from being exposed publicly
+    LIST_DB: "False"
+
+  ingress:
+    enabled: true
+    className: nginx
+    host: openspp.mifos.gazelle.test
+
+  service:
+    port: 8069
+
+############### PostgreSQL (dedicated to OpenSPP) ####################
+## Reference: https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml
+postgresql:
+  enabled: true
+  fullnameOverride: "postgresql"
+
+  image:
+    tag: "16"
+
+  auth:
+    username: "openspp"
+    password: "opensppPas42"
+    database: "openspp"
+
+  primary:
+    # Disable persistence to keep storage footprint minimal (matches infra pattern)
+    persistence:
+      enabled: false
+
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"

@@ -13,7 +13,9 @@ CONFIG_DIR="$BASE_DIR/config"
 UTILS_DIR="$BASE_DIR/src/utils"
 DATA_LOADING_DIR="$UTILS_DIR/data-loading"
 export UTILS_DIR DATA_LOADING_DIR
-INFRA_CHART_DIR="$BASE_DIR/src/deployer/helm/infra" 
+INFRA_CHART_DIR="$BASE_DIR/src/deployer/helm/infra"
+OPENSPP_CHART_DIR="$BASE_DIR/src/deployer/helm/openspp"
+export OPENSPP_CHART_DIR
 NGINX_VALUES_FILE="$CONFIG_DIR/nginx_values.yaml"
 
 # Mojaloop vNext 

@@ -6,6 +6,7 @@ source "$RUN_DIR/src/deployer/vnext.sh" || { echo "FATAL: Could not source vnext
 source "$RUN_DIR/src/deployer/mifosx.sh" || { echo "FATAL: Could not source mifosx.sh. Check RUN_DIR: $RUN_DIR"; exit 1; }
 source "$RUN_DIR/src/deployer/phee.sh"   || { echo "FATAL: Could not source phee.sh. Check RUN_DIR: $RUN_DIR"; exit 1; }
 source "$RUN_DIR/src/deployer/mastercard.sh" || { echo "FATAL: Could not source mastercard.sh. Check RUN_DIR: $RUN_DIR"; exit 1; }
+source "$RUN_DIR/src/deployer/openspp.sh"    || { echo "FATAL: Could not source openspp.sh. Check RUN_DIR: $RUN_DIR"; exit 1; }
 source "$RUN_DIR/src/utils/helpers.sh" || { echo "FATAL: Could not source helpers.sh. Check RUN_DIR: $RUN_DIR"; exit 1; }
 
 #------------------------------------------------------------
@@ -290,6 +291,9 @@ function print_deployment_end_message() {
   echo "  vNext Admin:   http://vnextadmin.${GAZELLE_DOMAIN}"
   echo "  Ops Web:       http://ops.${GAZELLE_DOMAIN}"
   echo "  Zeebe Operate: http://zeebe-operate.${GAZELLE_DOMAIN}"
+  if [[ -n "${OPENSPP_NAMESPACE:-}" ]]; then
+    echo "  OpenSPP:       http://openspp.${GAZELLE_DOMAIN}"
+  fi
   echo
   echo "  kubectl get pods -A"
   echo
@@ -334,6 +338,11 @@ function deleteApps() {
       "mastercard-demo")
         log_step "Removing Mastercard demo"
         cleanup
+        log_ok
+        ;;
+      "openspp")
+        log_step "Removing OpenSPP"
+        deleteResourcesInNamespaceMatchingPattern "$OPENSPP_NAMESPACE"
         log_ok
         ;;
       *)
@@ -395,6 +404,10 @@ function deployApps() {
         fi
         logWithVerboseCheck "$debug" "$DEBUG" "MASTERCARD_CBS_HOME=$MASTERCARD_CBS_HOME"
         deploy_mastercard
+        ;;
+      "openspp")
+        deployInfrastructure "false"
+        deployOpenSPP
         ;;
       *)
         log_error "Unknown application '$app'. This should have been caught by validation."

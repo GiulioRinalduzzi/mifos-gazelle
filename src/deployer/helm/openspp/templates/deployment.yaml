@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-openspp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: openspp
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.openspp.replicaCount }}
+  selector:
+    matchLabels:
+      app: openspp
+  template:
+    metadata:
+      labels:
+        app: openspp
+        release: {{ .Release.Name }}
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z {{ .Values.openspp.env.HOST }} {{ .Values.openspp.env.PORT }}; do
+                echo "Waiting for PostgreSQL at {{ .Values.openspp.env.HOST }}:{{ .Values.openspp.env.PORT }}..."
+                sleep 5
+              done
+              echo "PostgreSQL is ready."
+      containers:
+        - name: openspp
+          image: "{{ .Values.openspp.image.repository }}:{{ .Values.openspp.image.tag }}"
+          imagePullPolicy: {{ .Values.openspp.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8069
+              protocol: TCP
+          env:
+            - name: HOST
+              value: {{ .Values.openspp.env.HOST | quote }}
+            - name: PORT
+              value: {{ .Values.openspp.env.PORT | quote }}
+            - name: USER
+              value: {{ .Values.openspp.env.USER | quote }}
+            - name: PASSWORD
+              value: {{ .Values.openspp.env.PASSWORD | quote }}
+            - name: DB
+              value: {{ .Values.openspp.env.DB | quote }}
+            - name: ADMIN_PASSWD
+              value: {{ .Values.openspp.env.ADMIN_PASSWD | quote }}
+            - name: LIST_DB
+              value: {{ .Values.openspp.env.LIST_DB | quote }}
+          resources:
+            {{- toYaml .Values.openspp.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /web/health
+              port: 8069
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /web/health
+              port: 8069
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3

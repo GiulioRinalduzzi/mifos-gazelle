@@ -137,7 +137,7 @@ function loadConfigFromFile() {
 
     # Read app enablement flags and construct the 'apps' variable
     local enabled_apps_list=""
-    local valid_apps=("infra" "vnext" "phee" "mifosx" "mastercard-demo")
+    local valid_apps=("infra" "vnext" "phee" "mifosx" "mastercard-demo" "openspp")
 
     for app_name in "${valid_apps[@]}"; do
         local app_enabled=$(crudini --get "$config_path" "$app_name" enabled 2>/dev/null)
@@ -214,7 +214,7 @@ function showUsage {
     -f config_file_path .. Specify an alternative config.ini file path (optional)
     -m mode .............. deploy|cleanapps|cleanall (required)
     -u user .............. (non root) user that the process will use for execution (required)
-    -a apps .............. Comma-separated list of apps (vnext,phee,mifosx,infra,mastercard-demo,setup-data) or 'all' (optional)
+    -a apps .............. Comma-separated list of apps (vnext,phee,mifosx,infra,mastercard-demo,openspp,setup-data) or 'all' (optional)
     -e environment ....... Cluster environment (local or remote, optional, default=local)
     -d debug ............. Enable debug mode (true|false, optional, default=false)
     -r redeploy .......... Force redeployment of apps (true|false, optional, default=true)
@@ -270,7 +270,7 @@ function validateInputs {
             log_warn "No apps specified via -a or config file. Defaulting to 'all'."
             apps="all"
         fi
-        local ALL_VALID_APPS="infra vnext phee mifosx mastercard-demo setup-data all"
+        local ALL_VALID_APPS="infra vnext phee mifosx mastercard-demo openspp setup-data all"
         local CORE_APPS="infra vnext phee mifosx"
 
         local current_apps_array

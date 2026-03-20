@@ -1,0 +1,23 @@
+apiVersion: v2
+description: Helm chart for OpenSPP Social Protection Platform (Odoo-based)
+name: gazelle-openspp
+version: 0.1.0
+appVersion: "openspp: 17.0; postgresql: 16"
+home: https://github.com/openMF/mifos-gazelle
+sources:
+- https://github.com/openMF/mifos-gazelle
+- https://github.com/openspp/openspp-program
+maintainers:
+- name: Mifos Gazelle Contributors
+dependencies:
+## PostgreSQL — dedicated to OpenSPP; not shared with MySQL used by Fineract.
+## OpenSPP/Odoo requires PostgreSQL and is incompatible with MySQL.
+- name: postgresql
+  alias: postgresql
+  condition: postgresql.enabled
+  repository: oci://registry-1.docker.io/bitnamicharts
+  tags:
+  - gazelle
+  - dependency
+  - openspp
+  version: 15.5.38

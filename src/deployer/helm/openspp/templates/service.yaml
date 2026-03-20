@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-openspp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: openspp
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.openspp.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: openspp

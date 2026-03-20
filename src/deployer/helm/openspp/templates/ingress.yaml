@@ -1,0 +1,23 @@
+{{- if .Values.openspp.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-openspp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: openspp
+    release: {{ .Release.Name }}
+spec:
+  ingressClassName: {{ .Values.openspp.ingress.className }}
+  rules:
+    - host: {{ .Values.openspp.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-openspp
+                port:
+                  number: {{ .Values.openspp.service.port }}
+{{- end }}
