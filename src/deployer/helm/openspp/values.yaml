@@ -14,7 +14,10 @@ openspp:
   replicaCount: 1
 
   image:
-    repository: ghcr.io/openspp/openspp-base
+    # Default: official Odoo image (public, no auth required).
+    # Replace with the actual OpenSPP image once available:
+    #   repository: ghcr.io/openspp/openspp-base
+    repository: docker.io/odoo
     tag: "17.0"
     pullPolicy: IfNotPresent
 
@@ -26,7 +29,7 @@ openspp:
       memory: "1536Mi"
       cpu: "1000m"
 
-  # PostgreSQL connection — points to the postgresql subchart below
+  # PostgreSQL connection — matches postgresql.auth values below
   env:
     HOST: "postgresql"
     PORT: "5432"
@@ -34,7 +37,6 @@ openspp:
     PASSWORD: "opensppPas42"
     DB: "openspp"
     ADMIN_PASSWD: "admin"
-    # Prevent the Odoo database list from being exposed publicly
     LIST_DB: "False"
 
   ingress:
@@ -46,10 +48,11 @@ openspp:
     port: 8069
 
 ############### PostgreSQL (dedicated to OpenSPP) ####################
-## Reference: https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml
+# Deployed via inline StatefulSet in templates/postgresql.yaml.
+# Uses docker.io/postgres:16 — no OCI registry auth required.
+# Persistence disabled (emptyDir) to stay within the 30 GB disk baseline.
 postgresql:
   enabled: true
-  fullnameOverride: "postgresql"
 
   image:
     tag: "16"
@@ -59,15 +62,10 @@ postgresql:
     password: "opensppPas42"
     database: "openspp"
 
-  primary:
-    # Disable persistence to keep storage footprint minimal (matches infra pattern)
-    persistence:
-      enabled: false
-
-    resources:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "512Mi"
-        cpu: "500m"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"

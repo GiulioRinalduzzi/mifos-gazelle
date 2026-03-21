@@ -9,15 +9,6 @@ sources:
 - https://github.com/openspp/openspp-program
 maintainers:
 - name: Mifos Gazelle Contributors
-dependencies:
-## PostgreSQL — dedicated to OpenSPP; not shared with MySQL used by Fineract.
-## OpenSPP/Odoo requires PostgreSQL and is incompatible with MySQL.
-- name: postgresql
-  alias: postgresql
-  condition: postgresql.enabled
-  repository: oci://registry-1.docker.io/bitnamicharts
-  tags:
-  - gazelle
-  - dependency
-  - openspp
-  version: 15.5.38
+# No subchart dependencies: PostgreSQL is deployed as inline Kubernetes manifests
+# in templates/postgresql.yaml using docker.io/postgres:16.
+# This avoids helm dep update / OCI registry pulls at deploy time.

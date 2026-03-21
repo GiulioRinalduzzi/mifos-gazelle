@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # openspp.sh -- OpenSPP Social Protection Platform deployer
 #
-# OpenSPP is an Odoo 17-based platform. It requires PostgreSQL (not MySQL),
-# which is deployed as a subchart within the openspp Helm chart and does not
-# share the MySQL instance used by Fineract/MifosX.
+# OpenSPP is an Odoo 17-based platform. It requires PostgreSQL (not MySQL).
+# PostgreSQL is deployed as inline Kubernetes manifests inside the openspp
+# Helm chart (templates/postgresql.yaml) using docker.io/postgres:16.
+# No helm dep update / OCI registry pull is required for the chart itself.
 #
 # Shared infra reused from the existing stack: NGINX ingress.
 # Redis and Kafka are available within the cluster if OpenSPP modules need them.
@@ -12,7 +13,7 @@ OPENSPP_CHART_DIR="${OPENSPP_CHART_DIR:-$RUN_DIR/src/deployer/helm/openspp}"
 
 #------------------------------------------------------------
 # Description : Deploys OpenSPP via its local Helm chart.
-#               PostgreSQL is included as a subchart.
+#               PostgreSQL is deployed as inline manifests (no subchart).
 # Usage       : deployOpenSPP
 #------------------------------------------------------------
 function deployOpenSPP() {
@@ -28,16 +29,19 @@ function deployOpenSPP() {
   update_fqdn "$OPENSPP_CHART_DIR/values.yaml" "mifos.gazelle.localhost" "$GAZELLE_DOMAIN"
   log_ok
 
-  ensure_helm_dependencies "$OPENSPP_CHART_DIR"
+  # No subchart dependencies — PostgreSQL is inline in templates/postgresql.yaml.
+  # ensure_helm_dependencies intentionally skipped: nothing to download.
 
   log_step "Helm chart (openspp)"
   local helm_cmd="helm upgrade --install --wait --timeout 600s $OPENSPP_RELEASE_NAME $OPENSPP_CHART_DIR -n $OPENSPP_NAMESPACE"
-  if [ "$debug" = true ]; then
-    run_as_user "$helm_cmd"
-  else
-    run_as_user "$helm_cmd" >> /dev/null 2>&1
+  local helm_output
+  helm_output=$(run_as_user "$helm_cmd" 2>&1)
+  local helm_rc=$?
+  if [ $helm_rc -ne 0 ]; then
+    log_error "helm upgrade --install openspp failed with:"
+    echo "$helm_output" >&2
   fi
-  check_command_execution $? "helm upgrade --install openspp"
+  check_command_execution $helm_rc "helm upgrade --install openspp"
   log_ok
 
   log_banner "OpenSPP Deployed"
